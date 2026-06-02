@@ -17,20 +17,27 @@ enum State {
     PLAYING, OWIN, XWIN, DRAW
 }
 
-class Player {
+class GamePlayer {
     final char symbol;
 
-    Player(char symbol) {
+    GamePlayer(char symbol) {
         this.symbol = symbol;
     }
 }
 
 class Game {
     static final int INF = 100;
+    static final char EMPTY = ' ';
 
-    final Player player1 = new Player('X');
-    final Player player2 = new Player('O');
-    final char[] board = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
+    static final int[][] WINNING_LINES = {
+        {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
+        {0, 3, 6}, {1, 4, 7}, {2, 5, 8},
+        {0, 4, 8}, {2, 4, 6}
+    };
+
+    final GamePlayer player1 = new GamePlayer('X');
+    final GamePlayer player2 = new GamePlayer('O');
+    final char[] board = {EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY};
 
     private final Random random;
     int q;
@@ -44,29 +51,29 @@ class Game {
     }
 
     State checkState(char[] currentBoard) {
-        if (hasLine(currentBoard, 'X')) {
+        if (hasWinningLine(currentBoard, player1.symbol)) {
             return State.XWIN;
         }
-        if (hasLine(currentBoard, 'O')) {
+        if (hasWinningLine(currentBoard, player2.symbol)) {
             return State.OWIN;
         }
-        for (char cell : currentBoard) {
-            if (cell == ' ') {
-                return State.PLAYING;
-            }
-        }
-        return State.DRAW;
+        return hasFreeCell(currentBoard) ? State.PLAYING : State.DRAW;
     }
 
     void generateMoves(char[] currentBoard, List<Integer> moves) {
+        collectAvailableMoves(currentBoard, moves);
+    }
+
+    void collectAvailableMoves(char[] currentBoard, List<Integer> freeCells) {
+        freeCells.clear();
         for (int i = 0; i < currentBoard.length; i++) {
-            if (currentBoard[i] == ' ') {
-                moves.add(i);
+            if (currentBoard[i] == EMPTY) {
+                freeCells.add(i);
             }
         }
     }
 
-    int evaluatePosition(char[] currentBoard, Player player) {
+    int evaluatePosition(char[] currentBoard, GamePlayer player) {
         State state = checkState(currentBoard);
         if (state == State.DRAW) {
             return 0;
@@ -80,30 +87,42 @@ class Game {
         return -1;
     }
 
-    int miniMax(char[] currentBoard, Player player) {
-        int bestValue = -INF;
+    int miniMax(char[] currentBoard, GamePlayer player) {
+        return computeBestMove(currentBoard, player);
+    }
+
+    int computeBestMove(char[] currentBoard, GamePlayer player) {
+        if (evaluatePosition(currentBoard, player) != -1) {
+            return 0;
+        }
+        int currentBest = -INF;
         List<Integer> moves = new ArrayList<Integer>();
         List<Integer> bestMoves = new ArrayList<Integer>();
-        generateMoves(currentBoard, moves);
+        collectAvailableMoves(currentBoard, moves);
         for (int move : moves) {
             currentBoard[move] = player.symbol;
-            int value = minMove(currentBoard, player);
-            currentBoard[move] = ' ';
-            if (value > bestValue) {
-                bestValue = value;
+            int value = minimaxMin(currentBoard, player);
+            currentBoard[move] = EMPTY;
+            if (value > currentBest) {
+                currentBest = value;
                 bestMoves.clear();
                 bestMoves.add(move + 1);
-            } else if (value == bestValue) {
+            } else if (value == currentBest) {
                 bestMoves.add(move + 1);
             }
         }
-        if (bestMoves.isEmpty()) {
-            return 0;
-        }
-        return bestMoves.get(random.nextInt(bestMoves.size()));
+        return bestMoves.isEmpty() ? 0 : bestMoves.get(random.nextInt(bestMoves.size()));
     }
 
-    int minMove(char[] currentBoard, Player player) {
+    int minMove(char[] currentBoard, GamePlayer player) {
+        return minimaxMin(currentBoard, player);
+    }
+
+    int maxMove(char[] currentBoard, GamePlayer player) {
+        return minimaxMax(currentBoard, player);
+    }
+
+    int minimaxMin(char[] currentBoard, GamePlayer player) {
         int value = evaluatePosition(currentBoard, player);
         if (value != -1) {
             return value;
@@ -111,16 +130,16 @@ class Game {
         q++;
         int bestValue = INF;
         List<Integer> moves = new ArrayList<Integer>();
-        generateMoves(currentBoard, moves);
+        collectAvailableMoves(currentBoard, moves);
         for (int move : moves) {
-            currentBoard[move] = otherSymbol(player.symbol);
-            bestValue = Math.min(bestValue, maxMove(currentBoard, player));
-            currentBoard[move] = ' ';
+            currentBoard[move] = opponentFor(player.symbol);
+            bestValue = Math.min(bestValue, minimaxMax(currentBoard, player));
+            currentBoard[move] = EMPTY;
         }
         return bestValue;
     }
 
-    int maxMove(char[] currentBoard, Player player) {
+    int minimaxMax(char[] currentBoard, GamePlayer player) {
         int value = evaluatePosition(currentBoard, player);
         if (value != -1) {
             return value;
@@ -128,22 +147,17 @@ class Game {
         q++;
         int bestValue = -INF;
         List<Integer> moves = new ArrayList<Integer>();
-        generateMoves(currentBoard, moves);
+        collectAvailableMoves(currentBoard, moves);
         for (int move : moves) {
             currentBoard[move] = player.symbol;
-            bestValue = Math.max(bestValue, minMove(currentBoard, player));
-            currentBoard[move] = ' ';
+            bestValue = Math.max(bestValue, minimaxMin(currentBoard, player));
+            currentBoard[move] = EMPTY;
         }
         return bestValue;
     }
 
-    private boolean hasLine(char[] currentBoard, char symbol) {
-        int[][] lines = {
-            {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
-            {0, 3, 6}, {1, 4, 7}, {2, 5, 8},
-            {0, 4, 8}, {2, 4, 6}
-        };
-        for (int[] line : lines) {
+    private boolean hasWinningLine(char[] currentBoard, char symbol) {
+        for (int[] line : WINNING_LINES) {
             if (currentBoard[line[0]] == symbol
                     && currentBoard[line[1]] == symbol
                     && currentBoard[line[2]] == symbol) {
@@ -153,7 +167,16 @@ class Game {
         return false;
     }
 
-    private char otherSymbol(char symbol) {
+    private boolean hasFreeCell(char[] currentBoard) {
+        for (char cell : currentBoard) {
+            if (cell == EMPTY) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private char opponentFor(char symbol) {
         return symbol == 'X' ? 'O' : 'X';
     }
 }
@@ -253,7 +276,7 @@ class TicTacToePanel extends JPanel implements ActionListener {
     }
 
     private void applyComputerMove() {
-        int move = game.miniMax(game.board, game.player2);
+        int move = game.computeBestMove(game.board, game.player2);
         if (move > 0) {
             applyMove(cells[move - 1], game.player2.symbol);
         }
@@ -273,14 +296,23 @@ class TicTacToePanel extends JPanel implements ActionListener {
 }
 
 public class Program {
+    static TicTacToePanel createGamePanel() {
+        return new TicTacToePanel(new GridLayout(3, 3));
+    }
+
+    static JFrame createGameFrame() {
+        JFrame frame = new JFrame("Tic-Tac-Toe");
+        frame.add(createGamePanel());
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setBounds(5, 5, 500, 500);
+        return frame;
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                JFrame frame = new JFrame("Tic-Tac-Toe");
-                frame.add(new TicTacToePanel(new GridLayout(3, 3)));
-                frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-                frame.setBounds(5, 5, 500, 500);
+                JFrame frame = createGameFrame();
                 frame.setVisible(true);
             }
         });

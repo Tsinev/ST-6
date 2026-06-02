@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.awt.GridLayout;
 import java.util.Random;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 class TicTacToePanelTest {
@@ -65,6 +66,28 @@ class TicTacToePanelTest {
 
     @Test
     void messageForMapsStatesToReadableText() {
+        TestPanel panel = new TestPanel(new Game(new Random(0)));
+
+        assertEquals("X wins", panel.messageFor(State.XWIN));
+        assertEquals("O wins", panel.messageFor(State.OWIN));
+        assertEquals("Draw", panel.messageFor(State.DRAW));
+        assertEquals("Game continues", panel.messageFor(State.PLAYING));
+    }
+
+    @RepeatedTest(20)
+    void repeatedUserMoveLeavesValidBoardState() {
+        TestPanel panel = new TestPanel(new Game(new Random(42)));
+        int moveIndex = new Random(5).nextInt(9);
+
+        panel.getCells()[moveIndex].doClick();
+
+        assertEquals('X', panel.getCells()[moveIndex].getMarker());
+        assertEquals('X', panel.getGame().board[moveIndex]);
+        assertNotNull(panel.getGame().board);
+    }
+
+    @RepeatedTest(10)
+    void repeatedMessageForStateReturnsReadableStatus() {
         TestPanel panel = new TestPanel(new Game(new Random(0)));
 
         assertEquals("X wins", panel.messageFor(State.XWIN));

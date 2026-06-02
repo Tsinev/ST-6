@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 class GameTest {
@@ -79,5 +80,33 @@ class GameTest {
         assertEquals(Game.INF, game.maxMove(new char[] {'X', 'X', ' ', 'O', 'O', ' ', ' ', ' ', ' '}, game.player1));
         assertEquals(-Game.INF, game.minMove(new char[] {'X', 'X', ' ', 'O', ' ', ' ', ' ', ' ', ' '}, game.player2));
         assertTrue(game.q > 0);
+    }
+
+    @RepeatedTest(20)
+    void repeatedStateEvaluationCoversWinningAndDrawBoards() {
+        Game game = new Game(new Random(0));
+        char[][] boards = {
+            {'X', 'X', 'X', ' ', ' ', ' ', ' ', ' ', ' '},
+            {' ', ' ', ' ', 'O', 'O', 'O', ' ', ' ', ' '},
+            {'X', ' ', ' ', 'X', ' ', ' ', 'X', ' ', ' '},
+            {' ', 'O', ' ', ' ', 'O', ' ', ' ', 'O', ' '},
+            {'X', ' ', ' ', ' ', 'X', ' ', ' ', ' ', 'X'},
+            {' ', ' ', 'O', ' ', 'O', ' ', 'O', ' ', ' '},
+            {'X', 'O', 'X', 'O', 'X', 'O', 'O', 'X', 'O'}
+        };
+        State[] expected = {State.XWIN, State.OWIN, State.XWIN, State.OWIN, State.XWIN, State.OWIN, State.DRAW};
+        int index = new Random(1).nextInt(boards.length);
+        assertEquals(expected[index], game.checkState(boards[index]));
+        int score = game.evaluatePosition(boards[index], index % 2 == 0 ? game.player1 : game.player2);
+        assertTrue(score == Game.INF || score == -Game.INF || score == 0);
+    }
+
+    @RepeatedTest(30)
+    void repeatedMiniMaxHandlesDifferentOpenings() {
+        Game game = new Game(new Random(13));
+        char[] board = {'X', 'O', ' ', ' ', 'X', ' ', ' ', 'O', ' '};
+        int move = game.miniMax(board, game.player2);
+        assertTrue(move >= 0 && move <= 9);
+        assertTrue(move == 0 || board[move - 1] == ' ');
     }
 }
